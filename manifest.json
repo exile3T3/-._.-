@@ -1,10 +1,12 @@
 {
-    "name": "draggable-greetings",
-    "display_name": "可拖动开场白",
-    "version": "1.0.0",
-    "description": "允许拖动重新排序角色卡的开场白消息",
-    "author": "Your Name",
-    "requires": [],
-    "js": "index.js",
-    "css": "style.css"
+  "display_name": "可拖动开场白",
+  "loading_order": 1,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Rabuka",
+  "version": "1.0.0",
+  "homePage": "https://github.com/exile3T3/-._.-",
+  "auto_update": false
 }
