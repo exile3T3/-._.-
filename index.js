@@ -1,111 +1,147 @@
 (function() {
     'use strict';
 
-    const MODULE_NAME = 'draggable-greetings';
-    
-    // 初始化插件
-    function init() {
-        console.log('可拖动开场白插件已加载');
-        
-        // 监听角色加载事件
-        eventSource.on('characterLoaded', enableDraggable);
-        
-        // 如果已有角色，立即启用
-        if (this_chid !== undefined) {
-            enableDraggable();
-        }
-    }
+    console.log('[可拖动开场白] 插件已加载');
 
-    // 启用拖拽功能
-    function enableDraggable() {
-        setTimeout(() => {
-            const container = document.querySelector('#character_popup .alternate_greetings_list, #mes_example_dialog .alternate_greetings_list');
-            
-            if (!container) {
-                console.log('未找到开场白容器');
-                return;
-            }
+    let dragging = null;
+    let orderChanged = false;
 
-            // 移除旧的事件监听器
-            container.querySelectorAll('.alternate_greeting').forEach(item => {
-                item.draggable = true;
-            });
+    function setupDraggable() {
+        const popup = document.querySelector('.popup');
+        if (!popup) return;
 
-            let draggedElement = null;
+        const container = popup.querySelector('.alternate_greetings_list');
+        if (!container) return;
 
-            container.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('alternate_greeting')) {
-                    draggedElement = e.target;
-                    e.target.style.opacity = '0.5';
-                }
-            });
+        if (container.dataset.draggableSetup === 'done') return;
 
-            container.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('alternate_greeting')) {
-                    e.target.style.opacity = '';
-                }
-            });
-
-            container.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(container, e.clientY);
-                if (afterElement == null) {
-                    container.appendChild(draggedElement);
-                } else {
-                    container.insertBefore(draggedElement, afterElement);
-                }
-            });
-
-            container.addEventListener('drop', function(e) {
-                e.preventDefault();
-                saveNewOrder();
-            });
-
-            console.log('开场白拖拽功能已启用');
-        }, 500);
-    }
-
-    // 获取拖拽后的位置
-    function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.alternate_greeting:not(.dragging)')];
-
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
-            }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-
-    // 保存新的顺序
-    function saveNewOrder() {
-        const container = document.querySelector('#character_popup .alternate_greetings_list, #mes_example_dialog .alternate_greetings_list');
         const items = container.querySelectorAll('.alternate_greeting');
-        
-        const newOrder = [];
-        items.forEach((item, index) => {
-            const textarea = item.querySelector('textarea');
-            if (textarea) {
-                newOrder.push(textarea.value);
-            }
+        if (items.length === 0) return;
+
+        container.dataset.draggableSetup = 'done';
+        console.log('[可拖动开场白] ✓ 找到', items.length, '个开场白');
+
+        setupOKButtonInterceptor(popup, container);
+
+        container.removeAttribute('draggable');
+        container.draggable = false;
+
+        items.forEach((item) => {
+            item.draggable = true;
+            item.style.cursor = 'move';
+            item.style.transition = 'all 0.2s';
+
+            item.ondragstart = function(e) {
+                dragging = this;
+                this.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            };
+
+            item.ondragend = function(e) {
+                this.style.opacity = '1';
+                this.style.borderTop = '';
+                this.style.borderBottom = '';
+                
+                items.forEach(g => {
+                    g.style.borderTop = '';
+                    g.style.borderBottom = '';
+                });
+                
+                orderChanged = true;
+                updateNumbers(container);
+            };
+
+            item.ondragover = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (this === dragging) return;
+
+                items.forEach(g => {
+                    if (g !== this) {
+                        g.style.borderTop = '';
+                        g.style.borderBottom = '';
+                    }
+                });
+
+                const rect = this.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+
+                if (e.clientY < midpoint) {
+                    this.style.borderTop = '3px solid #0078d7';
+                    this.style.borderBottom = '';
+                    container.insertBefore(dragging, this);
+                } else {
+                    this.style.borderBottom = '3px solid #0078d7';
+                    this.style.borderTop = '';
+                    container.insertBefore(dragging, this.nextSibling);
+                }
+            };
+
+            item.ondragenter = function(e) {
+                e.preventDefault();
+            };
+
+            item.ondrop = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            };
         });
 
-        // 更新角色数据
-        if (characters[this_chid]) {
-            characters[this_chid].data.alternate_greetings = newOrder;
-            console.log('开场白顺序已更新');
+        console.log('[可拖动开场白] ✅ 拖拽已启用');
+    }
+
+    function setupOKButtonInterceptor(popup, container) {
+        const okButton = popup.querySelector('.popup-button-ok');
+        if (!okButton || okButton.dataset.intercepted === 'true') return;
+
+        okButton.dataset.intercepted = 'true';
+
+        okButton.addEventListener('click', function(e) {
+            if (orderChanged) {
+                saveNewOrder(container);
+                orderChanged = false;
+            }
+        }, true);
+    }
+
+    function updateNumbers(container) {
+        const items = container.querySelectorAll('.alternate_greeting');
+        items.forEach((item, index) => {
+            const numberSpan = item.querySelector('.greeting_index');
+            if (numberSpan) {
+                numberSpan.textContent = index + 1;
+            }
+        });
+    }
+
+    function saveNewOrder(container) {
+        try {
+            const items = container.querySelectorAll('.alternate_greeting');
+            const newGreetings = [];
             
-            // 触发保存
-            saveCharacterDebounced();
+            items.forEach((item) => {
+                const textarea = item.querySelector('textarea');
+                if (textarea && textarea.value.trim()) {
+                    newGreetings.push(textarea.value);
+                }
+            });
+
+            const context = SillyTavern.getContext();
+            const charId = context.characterId;
+            
+            context.characters[charId].data.alternate_greetings = newGreetings;
+            
+            console.log('[可拖动开场白] 💾 已保存', newGreetings.length, '个开场白');
+            
+        } catch (error) {
+            console.error('[可拖动开场白] 保存失败:', error);
         }
     }
 
-    // 注册插件
-    jQuery(async () => {
-        init();
-    });
+    const observer = new MutationObserver(setupDraggable);
+    observer.observe(document.body, { childList: true, subtree: true });
+    setInterval(setupDraggable, 2000);
+
+    console.log('[可拖动开场白] ✓ 插件初始化完成');
 })();
