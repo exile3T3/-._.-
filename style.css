@@ -1,26 +1,17 @@
-.alternate_greeting {
+.alternate_greetings_list .drag-handle {
+    display: none !important;
+}
+
+.alternate_greeting[draggable="true"] {
+    transition: opacity 0.2s, border 0.2s;
+}
+
+.alternate_greeting[draggable="true"]:hover {
+    background-color: rgba(0, 120, 215, 0.05);
     cursor: move;
-    transition: opacity 0.2s;
 }
 
-.alternate_greeting:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.alternate_greeting.dragging {
-    opacity: 0.5;
-}
-
-/* 添加拖拽指示器 */
-.alternate_greeting::before {
-    content: "⋮⋮";
-    position: absolute;
-    left: 5px;
-    color: #888;
-    font-size: 16px;
-    opacity: 0.5;
-}
-
-.alternate_greeting:hover::before {
-    opacity: 1;
+.alternate_greeting[draggable="true"] {
+    border-top: 3px solid transparent;
+    border-bottom: 3px solid transparent;
 }
